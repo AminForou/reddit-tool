@@ -5,17 +5,10 @@ from nltk.corpus import stopwords
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 import streamlit as st
-import pandas as pd
-from io import BytesIO
-import xlsxwriter
 
-# Ensure the stopwords set is downloaded
-try:
-    stopwords.words('english')
-except LookupError:
-    nltk.download('stopwords')
-
-default_stop_words = set(stopwords.words('english'))
+# Download the stopwords set
+nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
 
 def connect_to_reddit(client_id, secret_key):
     reddit = praw.Reddit(
@@ -24,6 +17,8 @@ def connect_to_reddit(client_id, secret_key):
         user_agent="streamlit_app"
     )
     return reddit
+
+# ... [other parts of the code remain unchanged]
 
 def fetch_latest_questions(client_id, secret_key, subreddit_name, num_questions, question_type, num_answers):
     reddit = connect_to_reddit(client_id, secret_key)
@@ -49,66 +44,53 @@ def fetch_latest_questions(client_id, secret_key, subreddit_name, num_questions,
         })
     return questions
 
-def most_frequent_queries(questions, n_words, custom_stopwords):
+
+
+
+from collections import Counter
+
+# Assuming stop_words has already been defined or imported. If not, you'll need to define it.
+
+def most_frequent_queries(questions, n_words):
     """
     Analyze the most frequent queries in the questions and their top answers.
 
     Args:
     - questions (list): List of dictionaries with question details.
     - n_words (int): Number of words in the queries (1, 2, or 3).
-    - custom_stopwords (str): Comma-separated string of custom stopwords.
 
     Returns:
     - list: Most frequent queries.
     """
-    # Add custom stopwords to the default set
-    custom_stopwords_set = set(custom_stopwords.split(','))
-    all_stop_words = default_stop_words.union(custom_stopwords_set)
 
     # First, we identify and remove globally repeated answers
     all_answers = [answer for q in questions for answer in q['top_answers']]
     repeated_answers = [item for item, count in Counter(all_answers).items() if count > 1]
 
-    # Collect unique queries from each question
-    unique_queries = []
+    # Combining the question titles, bodies (excluding "No body content"), and filtered top answers
+    combined_text = " ".join(
+        [
+            q['title'] + " " + (q['body'] if q['body'] != "No body content" else "") +
+            " ".join([answer for answer in q['top_answers'] if answer not in repeated_answers])
+            for q in questions
+        ]
+    )
 
-    for q in questions:
-        combined_text = q['title'] + " " + (q['body'] if q['body'] != "No body content" else "") + " ".join(
-            [answer for answer in q['top_answers'] if answer not in repeated_answers])
+    # Tokenize the text and filter out stop words
+    tokens = [word for word in combined_text.split() if word.lower() not in stop_words]
 
-        # Tokenize the text and filter out stop words
-        tokens = [word for word in combined_text.split() if word.lower() not in all_stop_words]
-
-        # Generate n-word queries and collect unique queries
-        queries = set([" ".join(tokens[i:i + n_words]) for i in range(len(tokens) - n_words + 1)])
-        unique_queries.extend(queries)
+    # Generate n-word queries
+    queries = [" ".join(tokens[i:i+n_words]) for i in range(len(tokens) - n_words + 1)]
 
     # Using Counter to get most frequent queries
-    counter = Counter(unique_queries)
+    counter = Counter(queries)
     return counter.most_common()
+
 
 def generate_word_cloud(text):
     """Generate and display a word cloud from the provided text."""
     wordcloud = WordCloud(width=800, height=600, background_color='white').generate(text)
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.imshow(wordcloud, interpolation='bilinear')
-    ax.axis('off')
-    st.pyplot(fig)
-    plt.close(fig)
-
-def create_download_link(df_dict):
-    """
-    Create a download link for the dataframe dictionary with each dataframe as a sheet in an Excel file.
-
-    Args:
-    - df_dict (dict): Dictionary where keys are sheet names and values are dataframes.
-
-    Returns:
-    - bytes: Byte stream of the Excel file.
-    """
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        for sheet_name, df in df_dict.items():
-            df.to_excel(writer, sheet_name=sheet_name, index=False)
-    processed_data = output.getvalue()
-    return processed_data
+    plt.figure(figsize=(10, 5))
+    plt.imshow(wordcloud, interpolation='bilinear')
+    plt.axis('off')
+    st.pyplot(plt)
