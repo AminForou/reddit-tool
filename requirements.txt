@@ -15,4 +15,6 @@ requests==2.31.0
 streamlit==1.27.2
 <<<<<<< HEAD
 wordcloud==1.9.2
-xlsxwriterxlsxwriter
+xlsxwriter
+=======
+>>>>>>> parent of 6dfc0fd (Add missing serpapi module to requirements)
