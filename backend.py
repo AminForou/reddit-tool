@@ -9,10 +9,13 @@ import pandas as pd
 from io import BytesIO
 import xlsxwriter
 
-# Download the stopwords set
-nltk.download('stopwords')
-default_stop_words = set(stopwords.words('english'))
+# Ensure the stopwords set is downloaded
+try:
+    stopwords.words('english')
+except LookupError:
+    nltk.download('stopwords')
 
+default_stop_words = set(stopwords.words('english'))
 
 def connect_to_reddit(client_id, secret_key):
     reddit = praw.Reddit(
@@ -21,7 +24,6 @@ def connect_to_reddit(client_id, secret_key):
         user_agent="streamlit_app"
     )
     return reddit
-
 
 def fetch_latest_questions(client_id, secret_key, subreddit_name, num_questions, question_type, num_answers):
     reddit = connect_to_reddit(client_id, secret_key)
@@ -46,7 +48,6 @@ def fetch_latest_questions(client_id, secret_key, subreddit_name, num_questions,
             'top_answers': top_comments
         })
     return questions
-
 
 def most_frequent_queries(questions, n_words, custom_stopwords):
     """
@@ -86,7 +87,6 @@ def most_frequent_queries(questions, n_words, custom_stopwords):
     counter = Counter(unique_queries)
     return counter.most_common()
 
-
 def generate_word_cloud(text):
     """Generate and display a word cloud from the provided text."""
     wordcloud = WordCloud(width=800, height=600, background_color='white').generate(text)
@@ -95,7 +95,6 @@ def generate_word_cloud(text):
     ax.axis('off')
     st.pyplot(fig)
     plt.close(fig)
-
 
 def create_download_link(df_dict):
     """
